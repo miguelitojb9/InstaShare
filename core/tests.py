@@ -1,3 +1,142 @@
 from django.test import TestCase
+from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
+from core.models import UploadedFile
 
-# Create your tests here.
+
+class UploadedFileModelTest(TestCase):
+    
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123'
+        )
+        
+        # Crear un archivo de prueba
+        self.test_file = SimpleUploadedFile(
+            "test_file.txt",
+            b"file_content",
+            content_type="text/plain"
+        )
+    
+    def test_create_uploaded_file(self):
+        """Test creación básica de UploadedFile"""
+        uploaded_file = UploadedFile.objects.create(
+            user=self.user,
+            original_file=self.test_file,
+            original_name="test_file.txt",
+            display_name="Test File",
+            file_size=1024,
+            status='pending'
+        )
+        
+        self.assertEqual(uploaded_file.original_name, "test_file.txt")
+        self.assertEqual(uploaded_file.display_name, "Test File")
+        self.assertEqual(uploaded_file.status, 'pending')
+        self.assertEqual(uploaded_file.user, self.user)
+    
+    def test_display_name_defaults_to_original_name(self):
+        """Test que display_name se establece automáticamente a original_name
+            si está vacío"""
+        uploaded_file = UploadedFile(
+            user=self.user,
+            original_file=self.test_file,
+            original_name="original.txt",
+            display_name="",  # Vacío intencionalmente
+            file_size=1024
+        )
+        uploaded_file.save()
+        
+        self.assertEqual(uploaded_file.display_name, "original.txt")
+    
+    def test_get_file_size_mb(self):
+        """Test del método get_file_size_mb"""
+        # Test con tamaño en bytes
+        uploaded_file = UploadedFile.objects.create(
+            user=self.user,
+            original_file=self.test_file,
+            original_name="test.txt",
+            display_name="Test",
+            file_size=2097152,  # 2 MB en bytes
+            status='completed'
+        )
+        
+        self.assertEqual(uploaded_file.get_file_size_mb(), 2.0)
+    
+    def test_get_file_size_mb_zero(self):
+        """Test get_file_size_mb con tamaño 0"""
+        uploaded_file = UploadedFile.objects.create(
+            user=self.user,
+            original_file=self.test_file,
+            original_name="test.txt",
+            display_name="Test",
+            file_size=0,
+            status='completed'
+        )
+        
+        self.assertEqual(uploaded_file.get_file_size_mb(), 0)
+    
+    def test_status_choices(self):
+        """Test que verifica las opciones de status"""
+        uploaded_file = UploadedFile.objects.create(
+            user=self.user,
+            original_file=self.test_file,
+            original_name="test.txt",
+            display_name="Test",
+            file_size=1024,
+            status='processing'
+        )
+        
+        # Verificar que el status es válido
+        valid_statuses = [choice[0] for choice in UploadedFile.STATUS_CHOICES]
+        self.assertIn(uploaded_file.status, valid_statuses)
+    
+    def test_string_representation(self):
+        """Test del método __str__"""
+        uploaded_file = UploadedFile.objects.create(
+            user=self.user,
+            original_file=self.test_file,
+            original_name="test.txt",
+            display_name="Test File",
+            file_size=1024,
+            status='completed'
+        )
+        
+        expected_str = "Test File (completed)"
+        self.assertEqual(str(uploaded_file), expected_str)
+    
+    def test_file_upload_paths(self):
+        """Test que verifica las rutas de upload"""
+        uploaded_file = UploadedFile.objects.create(
+            user=self.user,
+            original_file=self.test_file,
+            original_name="test.txt",
+            display_name="Test",
+            file_size=1024
+        )
+        
+        # Verificar que el archivo se guarda en la ruta correcta
+        self.assertTrue(uploaded_file.original_file.name.startswith(
+            'media/uploads/original/')
+        )
+    
+        
+    def test_timestamps(self):
+        """Test de los campos de timestamp"""
+        uploaded_file = UploadedFile.objects.create(
+            user=self.user,
+            original_file=self.test_file,
+            original_name="test.txt",
+            display_name="Test",
+            file_size=1024
+        )
+        
+        self.assertIsNotNone(uploaded_file.uploaded_at)
+        self.assertIsNone(uploaded_file.processed_at)
+        
+        # Simular procesamiento completado
+        uploaded_file.status = 'completed'
+        uploaded_file.save()
+        
+        # processed_at debería seguir siendo None hasta que se establezca explícitamente
+        self.assertIsNone(uploaded_file.processed_at)
