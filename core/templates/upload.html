@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow">
+            <div class="card-body p-5">
+                <h2 class="card-title text-center mb-4">
+                    <i class="fas fa-upload"></i> Upload File
+                </h2>
+                
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="mb-4">
+                        <label for="id_original_file" class="form-label">Select File</label>
+                        <input type="file" name="original_file" class="form-control" id="id_original_file" required>
+                        <div class="form-text">Choose the file you want to upload and share.</div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="id_display_name" class="form-label">Display Name (Optional)</label>
+                        <input type="text" name="display_name" class="form-control" id="id_display_name" 
+                               placeholder="Enter a custom name for your file">
+                        <div class="form-text">If not provided, the original filename will be used.</div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'file_list' %}" class="btn btn-secondary me-md-2">
+                            <i class="fas fa-arrow-left"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload"></i> Upload File
+                        </button>
+                    </div>
+                </form>
+                
+                <div class="mt-5">
+                    <h5 class="mb-3"><i class="fas fa-info-circle"></i> How it works:</h5>
+                    <div class="alert alert-info">
+                        <ul class="mb-0">
+                            <li>Your file will be uploaded to our secure servers</li>
+                            <li>Our system will automatically compress it into a ZIP file</li>
+                            <li>Once processing is complete, you'll be able to download the compressed file</li>
+                            <li>You can rename your files at any time</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
