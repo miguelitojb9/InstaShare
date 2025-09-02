@@ -1,7 +1,6 @@
 """
 Unit tests for the UploadedFile model in the core app.
-This module contains a comprehensive test suite for the UploadedFile model,
-covering:
+This module contains a comprehensive test suite for the UploadedFile model, covering:
 """
 from django.test import TestCase
 from django.contrib.auth.models import User
@@ -12,17 +11,15 @@ from core.models import UploadedFile
 class UploadedFileModelTest(TestCase):
     """
     Test suite for the UploadedFile model.
-    This class contains unit tests to verify the correct behavior of the
-    UploadedFile model, including:
-        - Basic creation and field assignment.
-        - Automatic assignment of display_name to original_name when
-            display_name is empty.
-        - Calculation of file size in megabytes via get_file_size_mb method.
-        - Handling of zero file size.
-        - Validation of status choices.
-        - String representation of the model.
-        - Verification of file upload paths.
-        - Timestamp fields (uploaded_at and processed_at) behavior.
+    This class contains unit tests to verify the correct behavior of the UploadedFile model, including:
+    - Basic creation and field assignment.
+    - Automatic assignment of display_name to original_name when display_name is empty.
+    - Calculation of file size in megabytes via get_file_size_mb method.
+    - Handling of zero file size.
+    - Validation of status choices.
+    - String representation of the model.
+    - Verification of file upload paths.
+    - Timestamp fields (uploaded_at and processed_at) behavior.
     Setup creates a test user and a sample uploaded file for use in tests.
     """
     
@@ -32,7 +29,7 @@ class UploadedFileModelTest(TestCase):
             password='testpass123'
         )
         
-        # create a simple uploaded file
+        # Crear un archivo de prueba
         self.test_file = SimpleUploadedFile(
             "test_file.txt",
             b"file_content",
@@ -62,7 +59,7 @@ class UploadedFileModelTest(TestCase):
             user=self.user,
             original_file=self.test_file,
             original_name="original.txt",
-            display_name="",
+            display_name="",  # Vacío intencionalmente
             file_size=1024
         )
         uploaded_file.save()
@@ -71,7 +68,7 @@ class UploadedFileModelTest(TestCase):
     
     def test_get_file_size_mb(self):
         """Test del método get_file_size_mb"""
-        # test with a file size of 2 MB (2 * 1024 * 1024 bytes)
+        # Test con tamaño en bytes
         uploaded_file = UploadedFile.objects.create(
             user=self.user,
             original_file=self.test_file,
@@ -107,7 +104,7 @@ class UploadedFileModelTest(TestCase):
             status='processing'
         )
         
-        # valid statuses verification
+        # Verificar que el status es válido
         valid_statuses = [choice[0] for choice in UploadedFile.STATUS_CHOICES]
         self.assertIn(uploaded_file.status, valid_statuses)
     
@@ -135,13 +132,14 @@ class UploadedFileModelTest(TestCase):
             file_size=1024
         )
         
-        # verification of upload paths
+        # Verificar que el archivo se guarda en la ruta correcta
         self.assertTrue(uploaded_file.original_file.name.startswith(
             'media/uploads/original/')
         )
+    
         
     def test_timestamps(self):
-        """timestamp fields behavior"""
+        """Test de los campos de timestamp"""
         uploaded_file = UploadedFile.objects.create(
             user=self.user,
             original_file=self.test_file,
@@ -153,9 +151,9 @@ class UploadedFileModelTest(TestCase):
         self.assertIsNotNone(uploaded_file.uploaded_at)
         self.assertIsNone(uploaded_file.processed_at)
         
-        # processing the file should set processed_at
+        # Simular procesamiento completado
         uploaded_file.status = 'completed'
         uploaded_file.save()
         
-        # processed_at should still be None until explicitly set
+        # processed_at debería seguir siendo None hasta que se establezca explícitamente
         self.assertIsNone(uploaded_file.processed_at)
