@@ -1,5 +1,9 @@
-from django.db import models
+"""
+Models for core app: defines UploadedFile for user file uploads and processing.
+"""
+
 from django.contrib.auth.models import User
+from django.db import models
 
 
 class UploadedFile(models.Model):
@@ -60,6 +64,14 @@ class UploadedFile(models.Model):
         super().save(*args, **kwargs)
     
     def get_file_size_mb(self):
+        """
+        Returns the file size in megabytes (MB), rounded to two decimal places.
+
+        If the file size is not set, returns 0.
+
+        Returns:
+            float: The file size in MB, rounded to two decimals, or 0 if file size is None or zero.
+        """
         return round(
             self.file_size / (1024 * 1024), 2
             ) if self.file_size else 0

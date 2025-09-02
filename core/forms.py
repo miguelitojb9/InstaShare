@@ -1,3 +1,7 @@
+"""
+Forms for handling file uploads and renaming in the InstaShare core app.
+"""
+
 from django import forms
 from .models import UploadedFile
 

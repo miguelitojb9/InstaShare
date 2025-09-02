@@ -42,6 +42,17 @@ Una plataforma para compartir archivos que permite a los usuarios subir archivos
     pip install -r requirements.txt
 
 
+4. **API DOCS**
+  # Endpoint 
+    # Include URLs from apps
+    'api/'
+
+    # swagger-ui
+    'api/docs/'
+
+    # redoc
+    'api/redoc/'
+
 # Ejecutar todos los tests
 python manage.py test
 

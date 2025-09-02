@@ -1,20 +1,29 @@
-from django.shortcuts import render
-import subprocess
-import os
+"""
+Views for handling user authentication, file upload, renaming, compression, and download
+in the InstaShare application. Includes custom login/logout, registration, file management,
+and a process for compressing uploaded files.
+"""
 import logging
-from django.views.generic import ListView, CreateView, UpdateView, View
-from django.contrib.auth.views import LoginView, LogoutView
+import os
+import subprocess
+import zipfile
+from datetime import datetime
+
+from django.conf import settings
+from django.contrib.auth import login
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib.auth import login
-from django.shortcuts import redirect, get_object_or_404
+from django.contrib.auth.views import LoginView, LogoutView
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
-from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
-from core.models import UploadedFile
-from .forms import FileUploadForm, FileRenameForm
 from django.views.decorators.http import require_POST
-from django.conf import settings
+from django.views.generic import CreateView, ListView, UpdateView, View
+
+from core.models import UploadedFile
+from .forms import FileRenameForm, FileUploadForm
 
 
 class CustomLoginView(LoginView):
@@ -179,12 +188,13 @@ class FileRenameView(LoginRequiredMixin, UpdateView):
 class FileDownloadView(LoginRequiredMixin, View):
     """
     View for handling the download of compressed files uploaded by users.
-    This view requires the user to be authenticated. It retrieves the requested file
-    by its ID and ensures that the file belongs to the requesting user. If the file's
-    status is not 'completed', it returns a 400 response indicating the file is not
-    ready for download. Otherwise, it serves the compressed file as a ZIP attachment.
+    This view requires the user to be authenticated. It retrieves the file
+    by its ID and ensures that the file belongs to the requesting user. If the
+    file' status is not 'completed', it returns a 400 response indicating the
+    file is not ready for download. Otherwise, it serves the compressed file as
+    a ZIP attachment.
     Methods:
-        get(request, *args, **kwargs): Handles GET requests to download the file.
+        get(request, *args, **kwargs): Handles GET requests to download the file
             - Returns a ZIP file if available and completed.
             - Returns a 400 error if the file is not ready.
     """
@@ -212,6 +222,7 @@ logger = logging.getLogger(__name__)
 
 
 @require_POST
+@login_required
 @csrf_exempt  # Solo  desarrollo; en producción, usar token CSRF adecuado
 def ejecutar_proceso_zip(request):
     """
@@ -236,36 +247,77 @@ def ejecutar_proceso_zip(request):
         Exception: For any other unexpected errors.
     """
     try:
-        # Ruta al manage.py
-        manage_py_path = os.path.join(settings.BASE_DIR, 'manage.py')
-        
-        # Ejecutar el comando personalizado
-        resultado = subprocess.run(
-            ['python', manage_py_path, 'process_files'],
-            capture_output=True,
-            text=True, timeout=300,
-            cwd=settings.BASE_DIR,
-            check=False
-        )
-        
-        if resultado.returncode == 0:
-            logger.info(f"Comando ejecutado exitosamente: {resultado.stdout}")
-            return JsonResponse({
-                'success': True,
-                'message': 'Proceso de archivos completado',
-                'output': resultado.stdout
-            })
-        else:
-            logger.error(f"Error en comando: {resultado.stderr}")
-            return JsonResponse({
-                'success': False,
-                'error': resultado.stderr,
-                'output': resultado.stdout
-            }, status=500)
+        # Obtener todos los archivos pendientes
+            pending_files = UploadedFile.objects.filter(status='pending')
             
+            results = {
+                'total_files': pending_files.count(),
+                'processed': 0,
+                'failed': 0,
+                'details': []
+            }
+            
+            if pending_files:
+                for file in pending_files:
+                    try:
+                        # Actualizar estado a procesando
+                        file.status = 'processing'
+                        file.save()
+                        
+                        # Crear versión comprimida
+                        original_path = file.original_file.path
+                        compressed_filename = f"compressed_{file.original_name}.zip"
+                        compressed_path = os.path.join(
+                            settings.MEDIA_ROOT,
+                            'uploads/compressed',
+                            compressed_filename
+                        )
+                        
+                        # Asegurar que el directorio existe
+                        os.makedirs(os.path.dirname(compressed_path), exist_ok=True)
+                        
+                        # Crear archivo zip
+                        with zipfile.ZipFile(
+                            compressed_path,
+                            'w',
+                            zipfile.ZIP_DEFLATED
+                        ) as zipf:
+                            zipf.write(original_path, os.path.basename(original_path))
+                        
+                        # Actualizar modelo
+                        file.compressed_file.name = f'uploads/compressed/{compressed_filename}'
+                        file.status = 'completed'
+                        file.processed_at = datetime.now()
+                        file.save()
+                        
+                        results['processed'] += 1
+                        results['details'].append({
+                            'file_id': file.id,
+                            'file_name': file.display_name,
+                            'status': 'success',
+                            'compressed_url': file.compressed_file.url
+                        })
+                        
+                    except Exception as e:
+                        file.status = 'failed'
+                        file.save()
+                        results['failed'] += 1
+                        results['details'].append({
+                            'file_id': file.id,
+                            'file_name': file.display_name,
+                            'status': 'error',
+                            'error': str(e)
+                        })
+            
+            return JsonResponse({
+                'success': 'ok',
+                'status': 'completed',
+                'summary': results,
+                'message': f'Processed {results["processed"]} files, {results["failed"]} failed'
+            })
     except subprocess.TimeoutExpired:
-        logger.error("Tiempo de espera agotado")
-        return JsonResponse({'error': 'Tiempo de espera agotado'}, status=500)
+        logger.error("Timeout expired while executing the command")
+        return JsonResponse({'error': 'timeout expired while executing the command'}, status=500)
     except Exception as e:
-        logger.error(f"Error inesperado: {str(e)}")
+        logger.error(f"Unespected error: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)

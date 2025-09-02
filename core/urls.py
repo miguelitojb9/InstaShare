@@ -1,6 +1,21 @@
-from django.urls import path
+"""
+URL configuration for the core app of InstaShare.
+Defines routes for authentication, file operations, batch processing,
+statistics, and API documentation.
+"""
+
 from django.conf import settings
 from django.conf.urls.static import static
+from django.urls import include, path
+
+from drf_spectacular.views import (
+    SpectacularAPIView,
+    SpectacularSwaggerView,
+    SpectacularRedocView,
+)
+
+from core.viewsets import FileStatsView, ProcessFilesView
+
 from core.views import (
     CustomLoginView,
     CustomLogoutView,
@@ -9,7 +24,7 @@ from core.views import (
     FileUploadView,
     FileRenameView,
     FileDownloadView,
-    ejecutar_proceso_zip
+    ejecutar_proceso_zip,
 )
 
 urlpatterns = [
@@ -29,6 +44,16 @@ urlpatterns = [
             ejecutar_proceso_zip,
             name='ejecutar_proceso_zip'
         ),
+    
+    # Endpoint para procesamiento batch
+    path('process-files/', ProcessFilesView.as_view(), name='process_files'),
+    
+    # Endpoint para estadísticas
+    path('stats/', FileStatsView.as_view(), name='file_stats'),
+    path('api/', include('core.api_urls')),  # Incluye las URLs de tu app
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 ]
 
 if settings.DEBUG:

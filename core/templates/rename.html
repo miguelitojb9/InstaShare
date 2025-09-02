@@ -19,15 +19,15 @@
                     
                     <div class="mb-4">
                         <label for="id_display_name" class="form-label">New File Name</label>
-                        <input type="text" name="display_name" class="form-control" id="id_display_name" 
-                               value="{{ form.display_name.value }}" required>
+                        <input type="text" name="display_name" class="form-control" id="id_display_name"
+                            value="{{ form.display_name.value }}" required>
                     </div>
                     
                     <div class="mb-4">
                         <strong>Original Filename:</strong> {{ file.original_name }}<br>
                         <strong>Current Size:</strong> {{ file.get_file_size_mb|floatformat:2 }} MB<br>
-                        <strong>Status:</strong> 
-                        <span class="badge 
+                        <strong>Status:</strong>
+                        <span class="badge
                             {% if file.status == 'completed' %}bg-success
                             {% elif file.status == 'processing' %}bg-warning
                             {% elif file.status == 'failed' %}bg-danger
